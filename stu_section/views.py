@@ -1,7 +1,7 @@
 from django.shortcuts import render,redirect
 from django.contrib.auth import logout,authenticate,login
 from django.contrib.auth.forms import AuthenticationForm
-from prof_section.models import AttendanceRecord
+from prof_section.models import AttendanceRecord,AttendanceToken
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from datetime import datetime
@@ -53,19 +53,61 @@ def scan(request):
 
 
 def test(request):
-    
-    qr = request.POST['qr']
-    usernm = request.user
-    
-    attRec = AttendanceRecord()
-    attRec.studentID = usernm
-    attRec.courseID = qr
-    attRec.dateTime = datetime.now()
+    if request.method == "POST":
+        qr = request.POST['qr']
+    else:
+        qr = request.GET['qr']
+        #removing quotes around qr
 
-    
-    attRec.save()
-    
-    data={
-        "message":"done"
-    }
-    return JsonResponse(data)
+
+    usernm = request.user
+    course = ""
+    tokenNo = ""
+    print(qr)
+    if len(qr) > 9:
+        data={
+            "message":"qr invalid"
+        }
+        return JsonResponse(data)
+
+
+    for i in range(5):
+        course = course + qr[i]
+    for i in range(5,len(qr)):
+        tokenNo = tokenNo + qr[i]
+
+    print(course)
+    print(tokenNo)
+
+    if AttendanceToken.objects.filter(tokenNo = tokenNo).exists():
+        AttRecs = AttendanceRecord.objects.filter(studentID=usernm)
+        flag =False
+        for attRec in AttRecs:
+            if (  (attRec.dateTime - datetime.now(timezone.utc)).total_seconds()  )/60 < 50  :
+                flag = True
+        if not flag:
+
+
+            attRec = AttendanceRecord()
+            attRec.studentID = usernm
+            attRec.courseID = qr
+            attRec.dateTime = datetime.now()
+
+            
+            attRec.save()
+            
+            data={
+                "message":"done"
+            }
+            return JsonResponse(data)
+
+        else:
+            data={
+                "message":"Already Marked"
+            }
+            return JsonResponse(data)
+    else:
+        data={
+            "message":"token invalid"
+        }
+        return JsonResponse(data)
