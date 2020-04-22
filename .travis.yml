@@ -13,4 +13,4 @@ install:
 
 script:
 
-  - python manage.py test stu_section
+  - python website/manage.py test website/stu_section
